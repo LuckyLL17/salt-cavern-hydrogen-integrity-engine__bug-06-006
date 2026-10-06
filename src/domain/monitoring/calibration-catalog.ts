@@ -35,12 +35,13 @@ export function resolveCalibration(sensorId: string, observedAt: string, calibra
   }
   const candidates = eligibleCalibrations(sensorId, observedAt, calibrations);
   if (!candidates.length) throw new DomainError('CALIBRATION_NOT_FOUND', 'No calibration was effective at the sample time', 409, { sensorId, observedAt });
-  const candidateIds = new Set(candidates.map((item) => item.id));
   const leaves = candidates.filter((item) => !candidates.some((other) => other.supersedesId === item.id));
   if (leaves.length === 1) return leaves[0];
-  const latestStart = Math.max(...candidates.map((item) => parseCalibrationTime(item.validFrom)));
-  const latest = candidates.filter((item) => parseCalibrationTime(item.validFrom) === latestStart);
-  if (latest.length === 1 && latest.every((item) => candidateIds.has(item.id))) return latest[0];
+  if (leaves.length > 1) {
+    const latestStart = Math.max(...leaves.map((item) => parseCalibrationTime(item.validFrom)));
+    const latest = leaves.filter((item) => parseCalibrationTime(item.validFrom) === latestStart);
+    if (latest.length === 1) return latest[0];
+  }
   const ranked = candidates.map((item) => ({ item, depth: lineageDepth(item, ids) }))
     .sort((a, b) => b.depth - a.depth || parseCalibrationTime(b.item.validFrom) - parseCalibrationTime(a.item.validFrom) || parseCalibrationTime(b.item.createdAt) - parseCalibrationTime(a.item.createdAt));
   if (ranked.length > 1 && ranked[0].depth === ranked[1].depth && ranked[0].item.id !== ranked[1].item.id) {
